@@ -6,8 +6,10 @@ use regex::Regex;
 async fn main() {
     let exe = tokio::fs::read_to_string("기본.한").await.unwrap();
 
-
     std::fs::write("완료.bat", han(format!("@echo off\n;{exe}\n;pause"))).unwrap();
+
+
+    Command::new("./완료.bat").spawn().unwrap();
 }
 
 
@@ -20,7 +22,11 @@ fn han(codes: String) -> String{
     let re_use_var2 = Regex::new(r"(?P<code1>.*)변수\((?P<code2>.*)\)(?P<code3>.*)").unwrap();
     let re_set_var1 = Regex::new(r"(?P<name>.*)(.*)는(?P<code>.*)").unwrap();
     let re_set_var2 = Regex::new(r"(?P<name>.*)(.*)은(?P<code>.*)").unwrap();
+    
     let re_operator_plus = Regex::new(r"(?P<var>.*)\+=(?P<code>.*)").unwrap();
+    let re_operator_minus = Regex::new(r"(?P<var>.*)\-=(?P<code>.*)").unwrap();
+    let re_operator_multiply = Regex::new(r"(?P<var>.*)\*=(?P<code>.*)").unwrap();
+    let re_operator_divide = Regex::new(r"(?P<var>.*)/=(?P<code>.*)").unwrap();
 
     for code in codes.split(";"){
         let mut code = code.to_string();
@@ -31,20 +37,36 @@ fn han(codes: String) -> String{
             let s = (&a["code"]).to_string();
             end_code.push_str(format!("set /a {}+={}\n", &a["var"].replace(" ", ""), han(s)).as_str());
             code = "".to_string();
+        }else if let Option::Some(a) = re_operator_minus.captures(&code){
+            let s = (&a["code"]).to_string();
+            end_code.push_str(format!("set /a {}-={}\n", &a["var"].replace(" ", ""), han(s)).as_str());
+            code = "".to_string();
+        }else if let Option::Some(a) = re_operator_multiply.captures(&code){
+            let s = (&a["code"]).to_string();
+            end_code.push_str(format!("set /a {}*={}\n", &a["var"].replace(" ", ""), han(s)).as_str());
+            code = "".to_string();
+        }else if let Option::Some(a) = re_operator_divide.captures(&code){
+            let s = (&a["code"]).to_string();
+            end_code.push_str(format!("set /a {}/={}\n", &a["var"].replace(" ", ""), han(s)).as_str());
+            code = "".to_string();
         }
 
         if let Option::Some(a) = re_use_var2.captures(&code){
-            code = format!("{}%{}%{}", &a["code1"], han((&a["code2"]).to_string()), han((&a["code3"]).to_string()));
-            println!("code: {code}");
-            // println!("code1: {}", &a["code1"]);
-            // println!("code2: {}", &a["code2"]);
-            // println!("code3: {}", &a["code3"]);
+            let code1 = &a["code1"];
+            // let code3 = &a["code3"];
+            // println!("code1: {code1:?} code3: {code3:?}");
+            if code1 == ""{
+
+                code = format!("{}%{}%{}", &a["code1"], han((&a["code2"]).to_string()), han((&a["code3"]).to_string()));
+                // println!("code: {code}");
+            }
+
         }
 
 
         
         if let Option::Some(a) = re_print.captures(&code){
-            end_code.push_str(format!("echo {}\n", &a["code"]).as_str());
+            end_code.push_str(format!("echo {}\n", han((&a["code"]).to_string())).as_str());
         }
         
         else if let Option::Some(a) = re_input.captures(&code){
